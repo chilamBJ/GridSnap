@@ -55,6 +55,36 @@ struct MosaicElement: AnnotationElement {
         context.restoreGState()
     }
 
+    func handles() -> [Handle] {
+        [Handle(type: .topLeft,     center: CGPoint(x: rect.minX, y: rect.maxY)),
+         Handle(type: .topRight,    center: CGPoint(x: rect.maxX, y: rect.maxY)),
+         Handle(type: .bottomLeft,  center: CGPoint(x: rect.minX, y: rect.minY)),
+         Handle(type: .bottomRight, center: CGPoint(x: rect.maxX, y: rect.minY))]
+    }
+
+    mutating func moveHandle(_ type: HandleType, to point: CGPoint) {
+        switch type {
+        case .topLeft:
+            rect = CGRect(x: point.x, y: rect.minY,
+                          width: rect.maxX - point.x, height: point.y - rect.minY)
+        case .topRight:
+            rect = CGRect(x: rect.minX, y: rect.minY,
+                          width: point.x - rect.minX, height: point.y - rect.minY)
+        case .bottomLeft:
+            rect = CGRect(x: point.x, y: point.y,
+                          width: rect.maxX - point.x, height: rect.maxY - point.y)
+        case .bottomRight:
+            rect = CGRect(x: rect.minX, y: point.y,
+                          width: point.x - rect.minX, height: rect.maxY - point.y)
+        default: break
+        }
+        rect = rect.standardized
+    }
+
+    mutating func translate(dx: CGFloat, dy: CGFloat) {
+        rect.origin.x += dx; rect.origin.y += dy
+    }
+
     func contains(point: CGPoint) -> Bool {
         rect.contains(point)
     }

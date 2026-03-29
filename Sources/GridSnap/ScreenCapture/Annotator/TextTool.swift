@@ -24,12 +24,44 @@ struct TextElement: AnnotationElement {
         context.restoreGState()
     }
 
-    func contains(point: CGPoint) -> Bool {
+    private var textRect: CGRect {
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
         ]
         let size = (text as NSString).size(withAttributes: attrs)
-        let rect = CGRect(origin: position, size: size)
-        return rect.contains(point)
+        return CGRect(origin: position, size: size)
+    }
+
+    func handles() -> [Handle] {
+        let r = textRect
+        return [
+            Handle(type: .topLeft,     center: CGPoint(x: r.minX, y: r.maxY)),
+            Handle(type: .topRight,    center: CGPoint(x: r.maxX, y: r.maxY)),
+            Handle(type: .bottomLeft,  center: CGPoint(x: r.minX, y: r.minY)),
+            Handle(type: .bottomRight, center: CGPoint(x: r.maxX, y: r.minY)),
+        ]
+    }
+
+    mutating func moveHandle(_ type: HandleType, to point: CGPoint) {
+        let r = textRect
+        guard r.width > 0 else { return }
+        switch type {
+        case .topRight, .bottomRight:
+            let newWidth = max(20, point.x - r.minX)
+            fontSize = max(8, min(200, fontSize * newWidth / r.width))
+        case .topLeft, .bottomLeft:
+            let newWidth = max(20, r.maxX - point.x)
+            fontSize = max(8, min(200, fontSize * newWidth / r.width))
+            position.x = point.x
+        default: break
+        }
+    }
+
+    mutating func translate(dx: CGFloat, dy: CGFloat) {
+        position.x += dx; position.y += dy
+    }
+
+    func contains(point: CGPoint) -> Bool {
+        return textRect.insetBy(dx: -4, dy: -4).contains(point)
     }
 }

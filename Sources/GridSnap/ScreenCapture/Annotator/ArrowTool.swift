@@ -43,6 +43,24 @@ struct ArrowElement: AnnotationElement {
         context.restoreGState()
     }
 
+    func handles() -> [Handle] {
+        [Handle(type: .startPoint, center: start),
+         Handle(type: .endPoint, center: end)]
+    }
+
+    mutating func moveHandle(_ type: HandleType, to point: CGPoint) {
+        switch type {
+        case .startPoint: start = point
+        case .endPoint:   end = point
+        default: break
+        }
+    }
+
+    mutating func translate(dx: CGFloat, dy: CGFloat) {
+        start.x += dx; start.y += dy
+        end.x += dx;   end.y += dy
+    }
+
     func contains(point: CGPoint) -> Bool {
         let dx = end.x - start.x
         let dy = end.y - start.y
