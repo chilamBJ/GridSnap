@@ -1,0 +1,15 @@
+# Build
+.build/
+GridSnap.app/
+
+# DMG
+*.dmg
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
