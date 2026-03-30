@@ -71,20 +71,82 @@ fi
 
 echo "✓ App bundle 组装完成"
 
-# 4. Ad-hoc 代码签名 (辅助功能/屏幕录制权限需要签名)
+
+# 5. 检查/创建自签名证书（让 TCC 权限在重编译后持续有效）
+CERT_NAME="GridSnap Dev"
+if ! security find-identity -v -p codesigning login.keychain 2>/dev/null | grep -q "$CERT_NAME"; then
+    echo ""
+    echo "→ 首次构建：创建自签名代码签名证书..."
+    echo "  ⚠️  请在弹出的「钥匙串访问」窗口中输入密码"
+
+    # 用 Keychain Access 脚本创建自签名证书
+    osascript -e '
+    tell application "Keychain Access"
+        -- noop to trigger launch
+    end tell' 2>/dev/null || true
+
+    # 通过 security 命令创建
+    cat > /tmp/gs_cert.cfg <<CERTEOF
+[ req ]
+default_bits       = 2048
+distinguished_name = req_dn
+prompt             = no
+[ req_dn ]
+CN = GridSnap Dev
+[ v3_code_sign ]
+keyUsage = digitalSignature
+extendedKeyUsage = codeSigning
+CERTEOF
+
+    openssl req -x509 -newkey rsa:2048 \
+        -keyout /tmp/gs_key.pem -out /tmp/gs_cert.pem \
+        -days 3650 -nodes \
+        -config /tmp/gs_cert.cfg -extensions v3_code_sign 2>/dev/null
+
+    openssl pkcs12 -export \
+        -out /tmp/gs.p12 \
+        -inkey /tmp/gs_key.pem -in /tmp/gs_cert.pem \
+        -passout pass:gridsnap 2>/dev/null
+
+    security import /tmp/gs.p12 -k ~/Library/Keychains/login.keychain-db \
+        -P "gridsnap" -T /usr/bin/codesign 2>/dev/null || \
+    security import /tmp/gs.p12 -k ~/Library/Keychains/login.keychain \
+        -P "gridsnap" -T /usr/bin/codesign 2>/dev/null || true
+
+    # 设置分区列表，允许 codesign 无弹窗使用
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+        -k "" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    rm -f /tmp/gs_key.pem /tmp/gs_cert.pem /tmp/gs.p12 /tmp/gs_cert.cfg
+
+    echo "  ✓ 证书已创建"
+    echo ""
+    echo "  ⚠️  首次使用需手动信任证书："
+    echo "     打开「钥匙串访问」→ 登录 → 证书 → 双击「GridSnap Dev」"
+    echo "     → 信任 → 代码签名 → 始终信任"
+fi
+
+# 6. 代码签名（优先用自签名证书，fallback 到 ad-hoc）
 echo "→ 代码签名..."
-codesign --force --deep --sign - \
-    --entitlements "${SCRIPT_DIR}/GridSnap.entitlements" \
-    "${APP_BUNDLE}" 2>&1
-echo "✓ 代码签名完成"
+# 清理 resource fork / .DS_Store，防止 codesign 报错
+find "${APP_BUNDLE}" -name '._*' -delete 2>/dev/null || true
+find "${APP_BUNDLE}" -name '.DS_Store' -delete 2>/dev/null || true
+xattr -cr "${APP_BUNDLE}" 2>/dev/null || true
 
-# 5. 重置辅助功能权限（重签名后旧授权失效）
-echo ""
-echo "→ 重置辅助功能权限缓存..."
-tccutil reset Accessibility com.gridsnap.app 2>/dev/null || true
-echo "✓ 权限缓存已重置"
+if security find-identity -v -p codesigning 2>/dev/null | grep -q "$CERT_NAME"; then
+    codesign --force --deep --sign "$CERT_NAME" \
+        --entitlements "${SCRIPT_DIR}/GridSnap.entitlements" \
+        "${APP_BUNDLE}" 2>&1
+    echo "✓ 代码签名完成 (自签名证书: $CERT_NAME)"
+else
+    codesign --force --deep --sign - \
+        --entitlements "${SCRIPT_DIR}/GridSnap.entitlements" \
+        "${APP_BUNDLE}" 2>&1
+    echo "✓ 代码签名完成 (ad-hoc)"
+    echo "  ⚠️  ad-hoc 签名：每次重编译后需重新授予权限"
+fi
 
-# 6. 验证
+# 7. 验证
 echo ""
 echo "=== 打包完成 ==="
 echo "  📦 ${APP_BUNDLE}"
@@ -94,6 +156,7 @@ echo "安装方式:"
 echo "  1. 直接双击运行: open ${APP_BUNDLE}"
 echo "  2. 拖到 /Applications 安装: cp -R ${APP_BUNDLE} /Applications/"
 echo ""
-echo "⚠️  重要: 每次重新打包后，需要重新授予辅助功能权限！"
+echo "  首次安装后需要授予:"
 echo "  → 系统设置 → 隐私与安全性 → 辅助功能 → 添加/勾选 GridSnap"
-echo "  （首次运行时 app 会自动弹出引导窗口）"
+echo "  → 系统设置 → 隐私与安全性 → 屏幕录制 → 添加/勾选 GridSnap"
+

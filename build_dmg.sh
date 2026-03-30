@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="GridSnap"
-VERSION="1.0.0"
+VERSION="1.1.0"
 APP_BUNDLE="${SCRIPT_DIR}/${APP_NAME}.app"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 DMG_PATH="${SCRIPT_DIR}/${DMG_NAME}"

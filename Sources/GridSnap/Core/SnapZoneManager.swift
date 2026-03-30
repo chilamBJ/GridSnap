@@ -146,6 +146,9 @@ final class SnapZoneManager {
     // MARK: - Drag Handling
 
     private func handleDrag(at point: NSPoint) {
+        // 截屏模式下不处理磁吸拖拽
+        if CaptureManager.shared.isCapturing { return }
+
         let now = CFAbsoluteTimeGetCurrent()
 
         // 过期拖拽检测：两次 drag 事件间隔 > 1s，说明上次拖拽的 mouseUp 丢了
@@ -165,6 +168,9 @@ final class SnapZoneManager {
     }
 
     private func handleDrop(at point: NSPoint) {
+        // 截屏模式下不处理
+        if CaptureManager.shared.isCapturing { cleanup(); return }
+
         let wm = WindowManager.shared
 
         print("[DROP] mouseUp at \(point) | activeGrid=\(wm.activeGrid != nil) targetCell=\(targetCellIndex as Any) sourceCell=\(sourceCellIndex as Any) sourceWinID=\(sourceWindowID as Any) sourceAX=\(sourceAXWindow != nil) confirmed=\(isConfirmedWindowDrag)")

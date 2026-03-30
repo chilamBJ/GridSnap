@@ -44,10 +44,18 @@ final class ScreenRecorder: NSObject, ObservableObject {
                     false, onScreenWindowsOnly: true
                 )
 
-                guard let display = content.displays.first else {
+                // 找鼠标所在的屏幕对应的 SCDisplay
+                let mouseLocation = NSEvent.mouseLocation
+                let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main
+                let targetDisplayID = targetScreen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+
+                guard let display = content.displays.first(where: { targetDisplayID != nil && $0.displayID == targetDisplayID })
+                        ?? content.displays.first
+                else {
                     print("GridSnap: 未找到可用显示器")
                     return
                 }
+                print("GridSnap: 录屏目标显示器 ID=\(display.displayID) (\(display.width)×\(display.height))")
 
                 // 配置流
                 let config = SCStreamConfiguration()
